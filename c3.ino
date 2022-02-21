@@ -1,6 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <ezTime.h>
-#include <WiFi.h>
+#include <WiFiManager.h>
 
 #include "font.h"
 
@@ -16,8 +16,8 @@ uint32_t green  = strip.Color(0, 255, 0);
 uint32_t blue   = strip.Color(0, 0, 255);
 uint32_t amber   = strip.Color(255, 140, 0);
 
-
 Timezone myTZ;
+
 
 void DrawPixel(uint32_t colour, uint8_t x, uint8_t y, uint8_t brightness) {
   uint8_t led = (4 - y) * 5 + (4 - x); //  Calc LED from x,y coords, 0,0 is bottom left pixel
@@ -79,25 +79,34 @@ void FadeString(uint32_t colour, String s) {
 }
 
 
+
 void GetNTP() {
 
-  char ssid[] = "My_SSID";
-  char pass[] = "My_Passowrd";
-
   WiFi.mode(WIFI_STA);
-  delay(100);
-
   WiFi.setTxPower(WIFI_POWER_5dBm);
-  WiFi.begin(ssid, pass);
+  WiFiManager wm;
+  wm.setDebugOutput(false);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+  bool res;
+  res = wm.autoConnect("5x5_Clock", "Clock123"); // create password protected ap
+  if (!res) {
+    Serial.println(F("Failed to start Wifi Manager AP"));
+  } else {
+    Serial.println(F("[+] Connected to Wi-Fi"));
+    Serial.println(F("[+] Syncing NTP"));
+    waitForSync();
+    Serial.println("[+] UTC: " + UTC.dateTime());
+
+    if (myTZ.setLocation(F("Europe/London"))) {
+      Serial.println(F("[+] Timezone lookup OK"));
+      Serial.print("[+] UK: ");
+      Serial.println(myTZ.dateTime());
+    } else {
+      Serial.println("[-] Timezone lookup failed, will use UTC");
+      myTZ = UTC;
+    }
   }
-
-  // setDebug(INFO);
-  waitForSync();
-  myTZ.setLocation(F("Europe/London"));
-
+  WiFi.disconnect();
 }
 
 
@@ -121,6 +130,5 @@ void loop() {
   }
 
   FadeString(amber, myTZ.dateTime("H:i"));
-
 
 }
